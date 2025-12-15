@@ -15,7 +15,8 @@ from stable_baselines3.common.utils import set_random_seed
 import rl_zoo3.import_envs  # noqa: F401
 from rl_zoo3.exp_manager import ExperimentManager
 from rl_zoo3.utils import ALGOS, StoreDict
-
+# 导入ffsm_env包，确保环境被正确注册
+import ffsm_env
 
 def train() -> None:
     parser = argparse.ArgumentParser()
