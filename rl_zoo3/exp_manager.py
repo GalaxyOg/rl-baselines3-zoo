@@ -305,6 +305,10 @@ class ExperimentManager:
         :param saved_hyperparams:
         """
         # Save hyperparams
+        # Add env_kwargs to saved hyperparams if it exists
+        saved_hyperparams = saved_hyperparams.copy()
+        if hasattr(self, 'env_kwargs') and self.env_kwargs:
+            saved_hyperparams['env_kwargs'] = self.env_kwargs
         with open(os.path.join(self.params_path, "config.yml"), "w") as f:
             yaml.dump(saved_hyperparams, f)
 
@@ -468,6 +472,16 @@ class ExperimentManager:
             if isinstance(self.monitor_kwargs, str):
                 self.monitor_kwargs = eval(self.monitor_kwargs)
             del hyperparams["monitor_kwargs"]
+        
+        # Preprocess env kwargs
+        if "env_kwargs" in hyperparams.keys():
+            self.env_kwargs = hyperparams["env_kwargs"]
+            # Convert str to python code
+            if isinstance(self.env_kwargs, str):
+                self.env_kwargs = eval(self.env_kwargs)
+            del hyperparams["env_kwargs"]
+            # Update eval_env_kwargs if not specified
+            self.eval_env_kwargs = self.env_kwargs
 
         # Delete keys so the dict can be pass to the model constructor
         if "n_envs" in hyperparams.keys():
