@@ -148,6 +148,7 @@ class ExperimentManager:
         self.specified_callbacks: list = []
         self.callbacks: list[BaseCallback] = []
         # Use env-kwargs if eval_env_kwargs was not specified
+        self._eval_env_kwargs_args = eval_env_kwargs
         self.eval_env_kwargs: dict[str, Any] = eval_env_kwargs or self.env_kwargs
         self.save_freq = save_freq
         self.eval_freq = eval_freq
@@ -210,6 +211,13 @@ class ExperimentManager:
         hyperparams, self.env_wrapper, self.callbacks, self.vec_env_wrapper = self._preprocess_hyperparams(
             unprocessed_hyperparams
         )
+
+        # Print custom args for the environment
+        if self.env_kwargs:
+            print(f"env_kwargs={self.env_kwargs}")
+
+        if self.eval_env_kwargs:
+            print(f"eval_env_kwargs={self.eval_env_kwargs}")
 
         self.create_log_folder()
         self.create_callbacks()
@@ -347,6 +355,9 @@ class ExperimentManager:
             hyperparams = hyperparams_dict[self.env_name.gym_id]
         elif self._is_atari:
             hyperparams = hyperparams_dict["atari"]
+        elif "default" in hyperparams_dict:
+            print("Using 'default' hyperparameters")
+            hyperparams = hyperparams_dict["default"]
         else:
             raise ValueError(f"Hyperparameters not found for {self.algo}-{self.env_name.gym_id} in {self.config}")
 
@@ -358,6 +369,14 @@ class ExperimentManager:
         if self.custom_hyperparams is not None:
             # Overwrite hyperparams if needed
             hyperparams.update(self.custom_hyperparams)
+
+        if "env_kwargs" in hyperparams and self.env_kwargs:
+            # Command line argument should overwrite config
+            hyperparams.update({"env_kwargs": self.env_kwargs})
+            # if no custom eval env args were passed, use the same as env kwargs
+            if self._eval_env_kwargs_args is None:
+                self.eval_env_kwargs = hyperparams["env_kwargs"]
+
         # Sort hyperparams that will be saved
         saved_hyperparams = OrderedDict([(key, hyperparams[key]) for key in sorted(hyperparams.keys())])
 
@@ -482,6 +501,12 @@ class ExperimentManager:
             del hyperparams["env_kwargs"]
             # Update eval_env_kwargs if not specified
             self.eval_env_kwargs = self.env_kwargs
+
+        # Preprocess env kwargs
+        # command line argument overwrote the config in read_hyperparameters()
+        if "env_kwargs" in hyperparams.keys():
+            self.env_kwargs = hyperparams["env_kwargs"]
+            del hyperparams["env_kwargs"]
 
         # Delete keys so the dict can be pass to the model constructor
         if "n_envs" in hyperparams.keys():
@@ -919,6 +944,12 @@ class ExperimentManager:
             load_if_exists=True,
             direction="maximize",
         )
+        # Save command
+        if "command" not in study.user_attrs:
+            study.set_user_attr("command", " ".join(sys.orig_argv))
+            # Save default hyperparams
+            for key in sorted(self._hyperparams):
+                study.set_user_attr(key, str(self._hyperparams[key]))
 
         try:
             if self.max_total_trials is not None:

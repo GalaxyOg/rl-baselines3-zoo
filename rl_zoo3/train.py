@@ -2,6 +2,7 @@ import argparse
 import difflib
 import importlib
 import os
+import sys
 import time
 import uuid
 
@@ -153,6 +154,7 @@ def train() -> None:
     )
     parser.add_argument("--wandb-project-name", type=str, default="sb3", help="the wandb's project name")
     parser.add_argument("--wandb-entity", type=str, default=None, help="the entity (team) of wandb's project")
+    parser.add_argument("--wandb-group", type=str, default=None, help="the wandb's group name")
     parser.add_argument(
         "-P",
         "--progress",
@@ -211,12 +213,16 @@ def train() -> None:
                 "if you want to use Weights & Biases to track experiment, please install W&B via `pip install wandb`"
             ) from e
 
+        # Save command used for training in wandb too
+        args.command = " ".join(sys.orig_argv)
+
         run_name = f"{args.env}__{args.algo}__{args.seed}__{int(time.time())}"
         tags = [*args.wandb_tags, f"v{sb3.__version__}"]
         run = wandb.init(
             name=run_name,
             project=args.wandb_project_name,
             entity=args.wandb_entity,
+            group=args.wandb_group,
             tags=tags,
             config=vars(args),
             sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
